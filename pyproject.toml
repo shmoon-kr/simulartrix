@@ -12,6 +12,7 @@ dependencies = [
     "django-choices-field>=3.0.1",
     "django-filter>=25.1",
     "gunicorn>=23.0.0",
+    "mysqlclient>=2.2.7",
     "openai>=1.109.1",
     "requests>=2.32.5",
     "strawberry-django-auth>=0.378.4",

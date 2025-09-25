@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from datetime import timedelta
+from gqlauth.settings_type import GqlAuthSettings, username_field, email_field, password_field, id_field
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-y4giag9x6y*2oz9u)%+bsyya4=!)s(&+=9ir-070s*h#!$sk)!'
+SECRET_KEY = os.environ.get("SECRET_KEY", 'django-insecure-y4giag9x6y*2oz9u)%+bsyya4=!)s(&+=9ir-070s*h#!$sk)!')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -37,6 +40,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_filters',
+    'strawberry.django',
+    'gqlauth',
+#    'pigger',
 ]
 
 MIDDLEWARE = [
@@ -45,8 +52,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'gqlauth.core.middlewares.django_jwt_middleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 ROOT_URLCONF = 'simul_site.urls'
@@ -67,6 +79,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'simul_site.wsgi.application'
+ASGI_APPLICATION = 'pigger_site.asgi.application'
 
 
 # Database
@@ -74,9 +87,25 @@ WSGI_APPLICATION = 'simul_site.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get("DB_NAME", "simulatrix"),
+        'USER': os.environ.get("DB_USER", "simulatrix"),
+        'PASSWORD': os.environ.get("DB_PASSWORD", "simulatrix"),
+        'HOST': os.environ.get("DB_HOST", "127.0.0.1"),
+        'PORT': '3306',
     }
+}
+
+
+# Channel Layers
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.environ.get("CACHE_SERVER","127.0.0.1"), 6379)],
+        },
+    },
 }
 
 
@@ -97,6 +126,69 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# gql_auth
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+GQL_AUTH = GqlAuthSettings(
+    ALLOW_LOGIN_NOT_VERIFIED=True,
+    LOGIN_FIELDS={email_field, password_field},
+    LOGIN_REQUIRE_CAPTCHA=False,
+    REGISTER_MUTATION_FIELDS={email_field},
+    REGISTER_REQUIRE_CAPTCHA=False,
+    CAPTCHA_EXPIRATION_DELTA=timedelta(seconds=120),
+    CAPTCHA_MAX_RETRIES=5,
+    # CAPTCHA_TEXT_FACTORY=default_text_factory,
+    # CAPTCHA_TEXT_VALIDATOR=default_captcha_text_validator,
+    FORCE_SHOW_CAPTCHA=False,
+    CAPTCHA_SAVE_IMAGE=False,
+    UPDATE_MUTATION_FIELDS={},
+
+    # email tokens
+    EXPIRATION_ACTIVATION_TOKEN=timedelta(days=7),
+    EXPIRATION_PASSWORD_RESET_TOKEN=timedelta(hours=1),
+    EXPIRATION_PASSWORD_SET_TOKEN=timedelta(hours=1),
+
+    # email stuff
+    #EMAIL_FROM: DjangoSetting[str] = DjangoSetting("DEFAULT_FROM_EMAIL")
+    SEND_ACTIVATION_EMAIL=True,
+    ACTIVATION_PATH_ON_EMAIL="activate",
+    PASSWORD_SET_PATH_ON_EMAIL="password-set",
+    PASSWORD_RESET_PATH_ON_EMAIL="password-reset",
+
+    # email subjects templates
+    EMAIL_SUBJECT_ACTIVATION="email/activation_subject.txt",
+    EMAIL_SUBJECT_ACTIVATION_RESEND="email/activation_subject.txt",
+    EMAIL_SUBJECT_PASSWORD_SET="email/password_set_subject.txt",
+    EMAIL_SUBJECT_PASSWORD_RESET="email/password_reset_subject.txt",
+
+    # email templates
+    EMAIL_TEMPLATE_ACTIVATION="email/activation_email.html",
+    EMAIL_TEMPLATE_ACTIVATION_RESEND="email/activation_email.html",
+    EMAIL_TEMPLATE_PASSWORD_SET="email/password_set_email.html",
+    EMAIL_TEMPLATE_PASSWORD_RESET="email/password_reset_email.html",
+    #EMAIL_TEMPLATE_VARIABLES=field(default_factory=lambda: {}),
+
+    # others
+    ALLOW_DELETE_ACCOUNT=False,
+    ALLOW_PASSWORDLESS_REGISTRATION=False,
+    SEND_PASSWORD_SET_EMAIL=False,
+
+    # JWT stuff
+    #  JWT_SECRET_KEY=DjangoSetting("SECRET_KEY")
+    JWT_ALGORITHM="HS256",
+    # JWT_TIME_FORMAT="%Y-%m-%dT%H:%M:%S.%f",
+    #  JWT_PAYLOAD_HANDLER: Callable[["UserProto"], "TokenType"] = create_token_type
+    JWT_PAYLOAD_PK=id_field,
+    #  JWT_DECODE_HANDLER: Callable[[str], "TokenType"] = decode_jwt
+    #  JWT_TOKEN_FINDER: Callable[[Union["HttpRequest", dict]], Optional[str]] = token_finder
+    JWT_EXPIRATION_DELTA=timedelta(minutes=5),
+    JWT_LONG_RUNNING_REFRESH_TOKEN=True,
+    JWT_REFRESH_TOKEN_N_BYTES=20,
+    JWT_REFRESH_EXPIRATION_DELTA=timedelta(days=7),
+)
 
 
 # Internationalization
