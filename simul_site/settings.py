@@ -97,13 +97,15 @@ DATABASES = {
 }
 
 
+CACHE_SERVER = os.environ.get("CACHE_SERVER", "127.0.0.1")
+
 # Channel Layers
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(os.environ.get("CACHE_SERVER","127.0.0.1"), 6379)],
+            "hosts": [(CACHE_SERVER, 6379)],
         },
     },
 }
