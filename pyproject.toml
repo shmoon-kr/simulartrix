@@ -1,0 +1,21 @@
+[project]
+name = "simulartrix"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "celery>=5.5.3",
+    "channels>=4.3.1",
+    "channels-redis>=4.3.0",
+    "django>=5.2.6",
+    "django-choices-field>=3.0.1",
+    "django-filter>=25.1",
+    "gunicorn>=23.0.0",
+    "openai>=1.109.1",
+    "requests>=2.32.5",
+    "strawberry-django-auth>=0.378.4",
+    "strawberry-graphql-django>=0.65.1",
+    "strawberry-graphql[channels,debug-server]>=0.282.0",
+    "uvicorn[standard]>=0.37.0",
+]
