@@ -1,6 +1,7 @@
 import strawberry
 import requests
 import openai
+import tiktoken
 import asyncio, os, threading
 from .types import *
 # from .resolver import *
@@ -54,26 +55,63 @@ class Mutation:
             prompt: str,
     ) -> None:
 
-        session = await models.Session.objects.select_related("template").aget(id=session_id)
+        session = await models.Session.objects.select_related("template").prefetch_related("ticks").aget(id=session_id)
 
         client = OpenAI()
 
+        llm_model = "gpt-4o-mini"
+
+        chat_history = [
+            {
+                "role": "system",
+                "content": [
+                    {"type": "input_text", "text": session.template.system_prompt},
+                ],
+            },
+        ]
+
+        last_ticks = session.ticks.filter(id__gte=0 if session.last_context_update is None else session.last_context_update.id)
+
+        async for tick in last_ticks:
+            chat_history.extend(
+                [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": tick.user_input},
+                        ],
+                    },
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {"type": "input_text", "text": tick.llm_response},
+                        ],
+                    },
+                ]
+            )
+
+        chat_history.append(
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt},
+                ],
+            }
+        )
+
         response = client.responses.create(
-            model="gpt-4o-mini",
-            input=[
-                {
-                    "role": "system",
-                    "content": [
-                        {"type": "input_text", "text": session.template.system_prompt},
-                    ],
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": prompt},
-                    ],
-                },
-            ],
+            model=llm_model,
+            input=chat_history,
+        )
+
+        # 토크나이저 불러오기
+        encoding = tiktoken.encoding_for_model(llm_model)
+
+        tick = await models.Tick.objects.acreate(
+            session=session,
+            user_input=prompt,
+            llm_response=response.output_text,
+            token_usage=len(encoding.encode(prompt)) + len(encoding.encode(response.output_text)) + 4
         )
 
         # WebSocket 그룹에 메시지를 전송
@@ -83,7 +121,7 @@ class Mutation:
             {
                 "type": "session.message",
                 "session_id": f"session_{session_id}",
-                "message": response.output_text,
+                "message": tick.llm_response,
             },
         )
 

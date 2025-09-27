@@ -111,4 +111,4 @@ class Tick(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Tick {self.session} @ {self.create_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        return f"Tick {self.session} @ {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"

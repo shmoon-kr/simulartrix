@@ -19,5 +19,6 @@ dependencies = [
     "strawberry-django-auth>=0.378.4",
     "strawberry-graphql-django>=0.65.1",
     "strawberry-graphql[channels,debug-server]>=0.282.0",
+    "tiktoken>=0.11.0",
     "uvicorn[standard]>=0.37.0",
 ]
