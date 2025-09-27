@@ -92,7 +92,7 @@ class Session(models.Model):
     title = models.CharField(max_length=100, default='Untitled Session')
     system_prompt = models.TextField(default='You are a helpful assistant.')
     context_summary = models.TextField(blank=True, null=True, help_text='Summarized context for long-term memory')
-    last_context_update = models.ForeignKey('Tick', on_delete=models.CASCADE, related_name='+')
+    last_context_update = models.ForeignKey('Tick', blank=True, null=True, default=None, on_delete=models.CASCADE, related_name='+')
     is_active = models.BooleanField(default=False, help_text='현재 진행중인 Session인지 여부')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

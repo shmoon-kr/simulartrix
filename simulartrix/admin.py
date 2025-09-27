@@ -31,6 +31,7 @@ class SessionTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'template', 'title', )
     pass
 
 @admin.register(Tick)

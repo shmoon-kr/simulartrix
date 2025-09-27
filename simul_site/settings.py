@@ -101,7 +101,7 @@ DATABASES = {
 
 CACHE_SERVER = os.environ.get("CACHE_SERVER", "127.0.0.1")
 
-ACHES = {
+CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": f"redis://{CACHE_SERVER}:6379",

@@ -1,9 +1,14 @@
 import strawberry
+import requests
+import openai
 import asyncio, os, threading
+from .types import *
 # from .resolver import *
 # from .permissions import *
 from asgiref.sync import sync_to_async
 from typing import List, Optional, AsyncGenerator
+from django.conf import settings
+from openai import OpenAI
 from graphql import GraphQLError
 from django.contrib.auth import authenticate
 from strawberry_django import mutations as strawberry_mutations
@@ -19,17 +24,6 @@ from gqlauth.user import arg_mutations as mutations
 @strawberry.type
 class Query(UserQueries):
     pass
-
-
-@strawberry.input
-class ChatRoom:
-    room_name: str
-
-
-@strawberry.type
-class ChatRoomMessage:
-    room_name: str
-    message: str
 
 
 @strawberry.type
@@ -56,9 +50,32 @@ class Mutation:
     async def send_prompt(
             self,
             info: Info,
-            session_id: str,
+            session_id: strawberry.ID,
             prompt: str,
     ) -> None:
+
+        session = await models.Session.objects.select_related("template").aget(id=session_id)
+
+        client = OpenAI()
+
+        response = client.responses.create(
+            model="gpt-4o-mini",
+            input=[
+                {
+                    "role": "system",
+                    "content": [
+                        {"type": "input_text", "text": session.template.system_prompt},
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": prompt},
+                    ],
+                },
+            ],
+        )
+
         # WebSocket 그룹에 메시지를 전송
         # 그룹 이름은 채팅방 이름 기반으로 설정됨
         await info.context['request'].consumer.channel_layer.group_send(
@@ -66,7 +83,7 @@ class Mutation:
             {
                 "type": "session.message",
                 "session_id": f"session_{session_id}",
-                "message": prompt,
+                "message": response.output_text,
             },
         )
 
@@ -83,13 +100,14 @@ class Subscription:
     async def on_session_message(
             self,
             info: Info,
-            session_id: str,
-    ) -> AsyncGenerator[ChatRoomMessage, None]:
+            session_id: strawberry.ID,
+    ) -> AsyncGenerator[SessionMessage, None]:
         """Join and subscribe to message sent to the given rooms."""
         ws = info.context["ws"]
         channel_layer = ws.channel_layer
 
         # room_id = f"chat_{room.room_name}"
+        session = await models.Session.objects.aget(id=session_id)
         session_id = f"session_{session_id}"
 
         # Join room group
@@ -107,8 +125,8 @@ class Subscription:
 
         async with ws.listen_to_channel("session.message", groups=[session_id]) as cm:
             async for message in cm:
-                yield ChatRoomMessage(
-                    room_name=message["session_id"],
+                yield SessionMessage(
+                    session=session,
                     message=message["message"],
                 )
 
