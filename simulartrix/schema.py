@@ -29,7 +29,6 @@ class ChatRoom:
 @strawberry.type
 class ChatRoomMessage:
     room_name: str
-    current_user: str
     message: str
 
 
@@ -54,20 +53,20 @@ class Mutation:
     #verify_secondary_email = mutations.VerifySecondaryEmail.field
 
     @strawberry.mutation
-    async def send_chat_message(
+    async def send_prompt(
             self,
             info: Info,
-            room: ChatRoom,
-            message: str,
+            session_id: str,
+            prompt: str,
     ) -> None:
         # WebSocket 그룹에 메시지를 전송
         # 그룹 이름은 채팅방 이름 기반으로 설정됨
         await info.context['request'].consumer.channel_layer.group_send(
-            f"chat_{room.room_name}",
+            f"session_{session_id}",
             {
-                "type": "chat.message",
-                "room_id": f"chat_{room.room_name}",
-                "message": message,
+                "type": "session.message",
+                "session_id": f"session_{session_id}",
+                "message": prompt,
             },
         )
 
@@ -81,41 +80,37 @@ class Subscription:
             await asyncio.sleep(0.5)
 
     @strawberry.subscription
-    async def join_chat_rooms(
+    async def on_session_message(
             self,
             info: Info,
-            rooms: List[ChatRoom],
-            user: str,
+            session_id: str,
     ) -> AsyncGenerator[ChatRoomMessage, None]:
         """Join and subscribe to message sent to the given rooms."""
         ws = info.context["ws"]
         channel_layer = ws.channel_layer
 
-        room_ids = [f"chat_{room.room_name}" for room in rooms]
+        # room_id = f"chat_{room.room_name}"
+        session_id = f"session_{session_id}"
 
-        for room in room_ids:
-            # Join room group
-            await channel_layer.group_add(room, ws.channel_name)
+        # Join room group
+        await channel_layer.group_add(session_id, ws.channel_name)
 
-        for room in room_ids:
-            await channel_layer.group_send(
-                room,
-                {
-                    "type": "chat.message",
-                    "room_id": room,
-                    "message": f"process: {os.getpid()} thread: {threading.current_thread().name}"
-                               f" -> Hello my name is {user}!",
-                },
-            )
+        await channel_layer.group_send(
+            session_id,
+            {
+                "type": "session.message",
+                "session_id": session_id,
+                "message": f"process: {os.getpid()} thread: {threading.current_thread().name}"
+                           f" -> Hello welcome to session {session_id}!",
+            },
+        )
 
-        async with ws.listen_to_channel("chat.message", groups=room_ids) as cm:
+        async with ws.listen_to_channel("session.message", groups=[session_id]) as cm:
             async for message in cm:
-                if message["room_id"] in room_ids:
-                    yield ChatRoomMessage(
-                        room_name=message["room_id"],
-                        message=message["message"],
-                        current_user=user,
-                    )
+                yield ChatRoomMessage(
+                    room_name=message["session_id"],
+                    message=message["message"],
+                )
 
 
 extensions = (DjangoOptimizerExtension, ApolloTracingExtension, )
