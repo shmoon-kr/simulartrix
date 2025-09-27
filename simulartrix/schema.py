@@ -70,7 +70,7 @@ class Mutation:
             },
         ]
 
-        last_ticks = session.ticks.filter(id__gte=0 if session.last_context_update is None else session.last_context_update.id)
+        last_ticks = session.ticks.filter(id__gte=getattr(session.last_context_update, "id", 0))
 
         async for tick in last_ticks:
             chat_history.extend(
@@ -84,7 +84,7 @@ class Mutation:
                     {
                         "role": "assistant",
                         "content": [
-                            {"type": "input_text", "text": tick.llm_response},
+                            {"type": "output_text", "text": tick.llm_response},
                         ],
                     },
                 ]
@@ -103,6 +103,8 @@ class Mutation:
             model=llm_model,
             input=chat_history,
         )
+
+        # print(response.refusal)
 
         # 토크나이저 불러오기
         encoding = tiktoken.encoding_for_model(llm_model)
