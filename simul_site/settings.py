@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'django_filters',
     'strawberry.django',
     'gqlauth',
-#    'pigger',
+    'simulartrix',
 ]
 
 MIDDLEWARE = [
@@ -87,17 +87,26 @@ ASGI_APPLICATION = 'pigger_site.asgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get("DB_NAME", "simulatrix"),
-        'USER': os.environ.get("DB_USER", "simulatrix"),
-        'PASSWORD': os.environ.get("DB_PASSWORD", "simulatrix"),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get("DB_NAME", "simulartrix"),
+        'USER': os.environ.get("DB_USER", "simulartrix"),
+        'PASSWORD': os.environ.get("DB_PASSWORD", "simulartrix"),
         'HOST': os.environ.get("DB_HOST", "127.0.0.1"),
-        'PORT': '3306',
+        'PORT': '5432',
     }
 }
 
 
+# Cache Server
+
 CACHE_SERVER = os.environ.get("CACHE_SERVER", "127.0.0.1")
+
+ACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://{CACHE_SERVER}:6379",
+    }
+}
 
 # Channel Layers
 
@@ -209,8 +218,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = 'static/'
+MEDIA_URL = 'media/'
+MEDIA_ROOT = 'media/'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'simulartrix.User'

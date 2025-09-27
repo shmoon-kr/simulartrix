@@ -60,14 +60,9 @@ class Mutation:
             room: ChatRoom,
             message: str,
     ) -> None:
-        print(info.context['request'].consumer)
-        print(info.context)
-        print(info)
-        '''
-        ws = info.context["ws"]
-        channel_layer = ws.channel_layer
-
-        await channel_layer.group_send(
+        # WebSocket 그룹에 메시지를 전송
+        # 그룹 이름은 채팅방 이름 기반으로 설정됨
+        await info.context['request'].consumer.channel_layer.group_send(
             f"chat_{room.room_name}",
             {
                 "type": "chat.message",
@@ -75,7 +70,6 @@ class Mutation:
                 "message": message,
             },
         )
-        '''
 
 
 @strawberry.type
