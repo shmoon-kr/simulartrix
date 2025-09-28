@@ -104,7 +104,8 @@ class Session(models.Model):
 class Tick(models.Model):
     """세션의 단일 틱."""
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='ticks')
-    user_input = models.TextField(default='continue', blank=True, help_text="사용자가 입력한 명령 (없으면 None)")
+    user_input = models.TextField(default='', blank=True, help_text="사용자가 입력한 명령 (없으면 None)")
+    prompt = models.TextField(default='continue', blank=True, help_text="시스템에 전달된 프롬프트 (없으면 None)")
     llm_response = models.TextField(help_text="LLM 응답")
     context_snapshot = models.TextField(help_text="이 틱 시점의 context 요약", blank=True)
     token_usage = models.PositiveIntegerField(default=0)

@@ -16,7 +16,13 @@ class Session:
     updated_at: auto
 
 
-@strawberry.type
-class SessionMessage:
+@strawberry.django.type(models.Tick)
+class Tick:
+    id: auto
     session: 'Session'
-    message: str
+    user_input: auto
+    prompt: auto
+    llm_response: auto
+    context_snapshot: auto
+    token_usage: auto
+    created_at: auto

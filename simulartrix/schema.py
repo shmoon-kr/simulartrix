@@ -112,6 +112,7 @@ class Mutation:
         tick = await models.Tick.objects.acreate(
             session=session,
             user_input=prompt,
+            prompt=prompt,
             llm_response=response.output_text,
             token_usage=len(encoding.encode(prompt)) + len(encoding.encode(response.output_text)) + 4
         )
@@ -122,8 +123,7 @@ class Mutation:
             f"session_{session_id}",
             {
                 "type": "session.message",
-                "session_id": f"session_{session_id}",
-                "message": tick.llm_response,
+                "tick_id": tick.id,
             },
         )
 
@@ -137,16 +137,15 @@ class Subscription:
             await asyncio.sleep(0.5)
 
     @strawberry.subscription
-    async def on_session_message(
+    async def on_tick(
             self,
             info: Info,
             session_id: strawberry.ID,
-    ) -> AsyncGenerator[SessionMessage, None]:
+    ) -> AsyncGenerator[Tick | None, None]:
         """Join and subscribe to message sent to the given rooms."""
         ws = info.context["ws"]
         channel_layer = ws.channel_layer
 
-        # room_id = f"chat_{room.room_name}"
         session = await models.Session.objects.aget(id=session_id)
         session_id = f"session_{session_id}"
 
@@ -157,18 +156,16 @@ class Subscription:
             session_id,
             {
                 "type": "session.message",
-                "session_id": session_id,
-                "message": f"process: {os.getpid()} thread: {threading.current_thread().name}"
-                           f" -> Hello welcome to session {session_id}!",
+                "tick_id": None if session.last_context_update is None else session.last_context_update.id,
             },
         )
 
         async with ws.listen_to_channel("session.message", groups=[session_id]) as cm:
-            async for message in cm:
-                yield SessionMessage(
-                    session=session,
-                    message=message["message"],
-                )
+            async for tick in cm:
+                if tick["tick_id"] is None:
+                    yield None
+                else:
+                    yield await models.Tick.objects.aget(id=tick["tick_id"])
 
 
 extensions = (DjangoOptimizerExtension, ApolloTracingExtension, )
