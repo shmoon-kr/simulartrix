@@ -63,7 +63,7 @@ class User(AbstractUser, PermissionsMixin):
         return str(self.email)
 
 
-class SessionTemplate(models.Model):
+class ThreadTemplate(models.Model):
     """Defines a base template for a simulation session."""
 
     name = models.CharField(max_length=100, unique=True, verbose_name='Template Name')
@@ -84,11 +84,11 @@ class SessionTemplate(models.Model):
         return self.name
 
 
-class Session(models.Model):
+class Thread(models.Model):
     """LLM interaction session."""
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sessions')
-    template = models.ForeignKey(SessionTemplate, on_delete=models.CASCADE, related_name='sessions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='threads')
+    template = models.ForeignKey(ThreadTemplate, on_delete=models.CASCADE, related_name='threads')
     title = models.CharField(max_length=100, default='Untitled Session')
     system_prompt = models.TextField(default='You are a helpful assistant.')
     context_summary = models.TextField(blank=True, null=True, help_text='Summarized context for long-term memory')
@@ -103,7 +103,7 @@ class Session(models.Model):
 
 class Tick(models.Model):
     """세션의 단일 틱."""
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='ticks')
+    thread = models.ForeignKey(Thread, on_delete=models.CASCADE, related_name='ticks')
     user_input = models.TextField(default='', blank=True, help_text="사용자가 입력한 명령 (없으면 None)")
     prompt = models.TextField(default='continue', blank=True, help_text="시스템에 전달된 프롬프트 (없으면 None)")
     llm_response = models.TextField(help_text="LLM 응답")
@@ -112,4 +112,4 @@ class Tick(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Tick {self.session} @ {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        return f"Tick {self.thread} @ {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"

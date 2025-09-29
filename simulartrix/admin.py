@@ -25,11 +25,11 @@ class UserAdmin(UserAdmin):
         }),
     )
 
-@admin.register(SessionTemplate)
+@admin.register(ThreadTemplate)
 class SessionTemplateAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Session)
+@admin.register(Thread)
 class SessionAdmin(admin.ModelAdmin):
     list_display = ('id', 'template', 'title', )
     pass

@@ -24,7 +24,8 @@ from gqlauth.user import arg_mutations as mutations
 
 @strawberry.type
 class Query(UserQueries):
-    pass
+    ticks: List[Tick] = strawberry.django.field()
+    threads: List[Thread] = strawberry.django.field()
 
 
 @strawberry.type
@@ -51,11 +52,11 @@ class Mutation:
     async def send_prompt(
             self,
             info: Info,
-            session_id: strawberry.ID,
+            thread_id: strawberry.ID,
             prompt: str,
     ) -> None:
 
-        session = await models.Session.objects.select_related("template").prefetch_related("ticks").aget(id=session_id)
+        thread = await models.Thread.objects.select_related("template").prefetch_related("ticks").aget(id=thread_id)
 
         client = OpenAI()
 
@@ -65,12 +66,12 @@ class Mutation:
             {
                 "role": "system",
                 "content": [
-                    {"type": "input_text", "text": session.template.system_prompt},
+                    {"type": "input_text", "text": thread.template.system_prompt},
                 ],
             },
         ]
 
-        last_ticks = session.ticks.filter(id__gte=getattr(session.last_context_update, "id", 0))
+        last_ticks = thread.ticks.filter(id__gte=getattr(thread.last_context_update, "id", 0))
 
         async for tick in last_ticks:
             chat_history.extend(
@@ -110,7 +111,7 @@ class Mutation:
         encoding = tiktoken.encoding_for_model(llm_model)
 
         tick = await models.Tick.objects.acreate(
-            session=session,
+            thread=thread,
             user_input=prompt,
             prompt=prompt,
             llm_response=response.output_text,
@@ -120,9 +121,9 @@ class Mutation:
         # WebSocket 그룹에 메시지를 전송
         # 그룹 이름은 채팅방 이름 기반으로 설정됨
         await info.context['request'].consumer.channel_layer.group_send(
-            f"session_{session_id}",
+            f"thread_{thread_id}",
             {
-                "type": "session.message",
+                "type": "thread.message",
                 "tick_id": tick.id,
             },
         )
@@ -140,27 +141,27 @@ class Subscription:
     async def on_tick(
             self,
             info: Info,
-            session_id: strawberry.ID,
+            thread_id: strawberry.ID,
     ) -> AsyncGenerator[Tick | None, None]:
         """Join and subscribe to message sent to the given rooms."""
         ws = info.context["ws"]
         channel_layer = ws.channel_layer
 
-        session = await models.Session.objects.aget(id=session_id)
-        session_id = f"session_{session_id}"
+        thread = await models.Thread.objects.aget(id=thread_id)
+        thread_id = f"thread_{thread_id}"
 
         # Join room group
-        await channel_layer.group_add(session_id, ws.channel_name)
+        await channel_layer.group_add(thread_id, ws.channel_name)
 
         await channel_layer.group_send(
-            session_id,
+            thread_id,
             {
-                "type": "session.message",
-                "tick_id": None if session.last_context_update is None else session.last_context_update.id,
+                "type": "thread.message",
+                "tick_id": None if thread.last_context_update is None else thread.last_context_update.id,
             },
         )
 
-        async with ws.listen_to_channel("session.message", groups=[session_id]) as cm:
+        async with ws.listen_to_channel("thread.message", groups=[thread_id]) as cm:
             async for tick in cm:
                 if tick["tick_id"] is None:
                     yield None

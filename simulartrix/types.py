@@ -1,10 +1,21 @@
 import strawberry
 from strawberry import auto
+from typing import Union
 from . import models
 
 
-@strawberry.django.type(models.Session)
-class Session:
+@strawberry.django.filters.filter(models.Thread, lookups=True)
+class ThreadFilter:
+    id: auto
+
+
+@strawberry.django.ordering.order(models.Thread)
+class ThreadOrder:
+    id: auto
+
+
+@strawberry.django.type(models.Thread, filters=ThreadFilter, order=ThreadOrder)
+class Thread:
     id: auto
     # template = models.ForeignKey(SessionTemplate, on_delete=models.CASCADE, related_name='sessions')
     title: auto
@@ -16,10 +27,21 @@ class Session:
     updated_at: auto
 
 
-@strawberry.django.type(models.Tick)
+@strawberry.django.filters.filter(models.Tick, lookups=True)
+class TickFilter:
+    id: auto
+    thread: Union['ThreadFilter', None]
+
+
+@strawberry.django.ordering.order(models.Tick)
+class TickOrder:
+    id: auto
+
+
+@strawberry.django.type(models.Tick, filters=TickFilter, order=TickOrder)
 class Tick:
     id: auto
-    session: 'Session'
+    thread: 'Thread'
     user_input: auto
     prompt: auto
     llm_response: auto
